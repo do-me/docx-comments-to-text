@@ -22,8 +22,6 @@ classifiers = [
     "Topic :: Text Processing",
 ]
 dependencies = [
-    "python-docx",
-    "lxml",
     "click",
 ]
 

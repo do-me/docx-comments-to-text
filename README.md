@@ -104,12 +104,14 @@ Each sheet becomes a Markdown table; comments are placed **inside the cell that 
 ## Features
 
 - **Markdown output**: headings, bold/italic, bullet/numbered lists, and tables
-- **XLSX support**: each worksheet rendered as a Markdown table with comments embedded inline in their cells (legacy + threaded comments)
-- **XML-tagged comments**: `<comment author="...">…</comment>` so LLMs can pick them out unambiguously
+- **XLSX support**: each worksheet rendered as a Markdown table with comments embedded inline in their cells. Both legacy comments (`xl/comments*.xml`) and modern Office 365 threaded comments (`xl/threadedComments/*.xml` + `xl/persons/*.xml`) are recognised; threaded comments take priority when both are present.
+- **XML-tagged comments**: `<comment author="..." cell="B7">…</comment>` so LLMs can pick them out (and locate them) unambiguously
+- **Sheet filtering**: `--list-sheets` to discover names, `--sheet "Name"` to convert a single worksheet
 - Accurate comment positioning and text preservation
 - Handles overlapping comments and multiple comment types
 - Configurable author display (authors shown by default)
 - Multiple comment placement styles for `.docx` (inline, end-of-paragraph, comments-only)
+- **Zero runtime third-party deps for parsing** — `zipfile` + `xml.etree.ElementTree` from the stdlib do all the heavy lifting; only `click` is needed for the CLI
 
 ## Technical Details
 
@@ -136,11 +138,11 @@ Each sheet becomes a Markdown table; comments are placed **inside the cell that 
 
 **XLSX:**
 1. Walk each sheet's cells (resolving shared strings, inline strings, numbers, booleans)
-2. Resolve each sheet's comments file via its relationships
+2. Resolve each sheet's comments file via its relationships — threaded comments are preferred when present (they carry richer author info via `xl/persons/*.xml`), with legacy comments as a fallback
 3. Append the comment XML tag directly to the owning cell's text, including a `cell="..."` attribute for traceability
 
 ## Dependencies
 
-- `python-docx` - DOCX file handling
-- `lxml` - XML parsing
-- `click` - Command line interface
+- `click` — command line interface
+
+The DOCX and XLSX parsers are implemented with only the Python standard library (`zipfile`, `xml.etree.ElementTree`, `xml.sax.saxutils`), so installation is fast and there are no native build steps.
