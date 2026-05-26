@@ -63,6 +63,6 @@ class TestCLI:
         result = self.runner.invoke(main, ['--help'])
 
         assert result.exit_code == 0
-        assert "Extract comments from DOCX files" in result.output
+        assert "Extract comments from DOCX or XLSX files" in result.output
         assert "--authors" in result.output
         assert "--output" in result.output
