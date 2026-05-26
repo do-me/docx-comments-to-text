@@ -7,8 +7,8 @@ from .docx_processor import process_docx
 @click.argument('input_file', type=click.Path(exists=True, path_type=Path))
 @click.option('-o', '--output', 'output_file', type=click.Path(path_type=Path), 
               help='Output file path. If not specified, prints to stdout.')
-@click.option('--authors', type=click.Choice(['never', 'always', 'auto']), default='auto',
-              help='How to display comment authors (default: auto)')
+@click.option('--authors', type=click.Choice(['never', 'always', 'auto']), default='always',
+              help='How to display comment authors (default: always)')
 @click.option('--placement', type=click.Choice(['inline', 'end-paragraph', 'comments-only']), default='inline',
               help='Comment placement style (default: inline)')
 def main(input_file: Path, output_file: Path, authors: str, placement: str):

@@ -1,6 +1,6 @@
 # docx-comments-to-text
 
-Extract reviewer comments from `.docx` files and insert them inline with the text they reference, creating a plain text output that keeps feedback in context.
+Extract reviewer comments from `.docx` files and insert them inline with the text they reference. Output is **Markdown** (with proper headings, formatting, and tables) and each comment is wrapped in an unambiguous `<comment>` XML tag so downstream tools (especially LLMs) can recognise it cleanly.
 
 Hosted version available at [https://docx-comment.app/](https://docx-comment.app/).
 
@@ -30,13 +30,13 @@ uv sync --dev
 # Basic usage - output to stdout
 docx-comments-to-text document.docx
 
-# Save to file
-docx-comments-to-text document.docx -o output.txt
+# Save to file (Markdown)
+docx-comments-to-text document.docx -o output.md
 
 # Control author display
+docx-comments-to-text document.docx --authors always   # Always show authors (default)
+docx-comments-to-text document.docx --authors auto     # Show authors only when multiple exist
 docx-comments-to-text document.docx --authors never    # Hide authors
-docx-comments-to-text document.docx --authors always   # Always show authors
-docx-comments-to-text document.docx --authors auto     # Show authors when multiple exist (default)
 
 # Control comment placement
 docx-comments-to-text document.docx --placement inline         # Inline with text (default)
@@ -58,32 +58,40 @@ uv run python -m docx_comments_to_text.cli document.docx
 ### Example Output
 
 #### Inline placement (default)
-```
-Original text with [reviewer feedback] [COMMENT: "This needs clarification"] continues here.
-More content [needs examples] [COMMENT John: "Consider adding examples"] and final text.
+```markdown
+# Section heading
+
+Original text with [reviewer feedback] <comment author="Jane">This needs clarification</comment> continues here.
+More content [needs examples] <comment author="John">Consider adding examples</comment> and final text.
+
+| Col A | Col B |
+| --- | --- |
+| **bold cell** | *italic cell* |
 ```
 
 #### End-paragraph placement
-```
+```markdown
 Original text with reviewer feedback[1] continues here.
 More content needs examples[2] and final text.
 
 Comments:
-1. This needs clarification
-2. John: Consider adding examples
+1. <comment author="Jane">This needs clarification</comment>
+2. <comment author="John">Consider adding examples</comment>
 ```
 
 #### Comments-only placement
-```
-"reviewer feedback": This needs clarification
-"needs examples": John: Consider adding examples
+```markdown
+"reviewer feedback": <comment author="Jane">This needs clarification</comment>
+"needs examples": <comment author="John">Consider adding examples</comment>
 ```
 
 ## Features
 
+- **Markdown output**: headings, bold/italic, bullet/numbered lists, and tables
+- **XML-tagged comments**: `<comment author="...">…</comment>` so LLMs can pick them out unambiguously
 - Accurate comment positioning and text preservation
-- Handles overlapping comments and multiple comment types  
-- Configurable author display
+- Handles overlapping comments and multiple comment types
+- Configurable author display (authors shown by default)
 - Multiple comment placement styles (inline, end-of-paragraph, comments-only)
 
 ## Technical Details
@@ -95,11 +103,11 @@ Comments:
 - Comment ranges marked with `<w:commentRangeStart>` and `<w:commentRangeEnd>`
 
 ### Comment Insertion Strategy
-1. Parse document XML to extract text and track character positions
-2. Map comment ranges to their start/end positions in the text
-3. Sort comments by position for safe insertion (reverse order)
+1. Walk the document XML, rendering paragraphs / tables / lists as Markdown
+2. Track character positions in the Markdown stream
+3. Map comment ranges to their start/end positions in that stream
 4. Wrap commented text in brackets: `[commented text]`
-5. Insert comment content after bracketed text: `[COMMENT: "feedback"]`
+5. Insert the comment as an XML tag after the bracketed text: `<comment author="…">feedback</comment>`
 
 ## Dependencies
 

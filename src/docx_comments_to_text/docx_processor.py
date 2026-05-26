@@ -3,10 +3,10 @@ from .docx_parser import DocxParser
 from .text_formatter import format_text_with_comments
 
 
-def process_docx(input_file: str | Path, authors: str = 'auto', placement: str = 'inline') -> str:
+def process_docx(input_file: str | Path, authors: str = 'always', placement: str = 'inline') -> str:
     """
     Extract comments from a DOCX file and return formatted text with comments.
-    
+
     Args:
         input_file: Path to the DOCX file
         authors: How to display authors ('never', 'always', 'auto')
@@ -32,5 +32,5 @@ def process_docx(input_file: str | Path, authors: str = 'auto', placement: str =
 if __name__ == "__main__":
     # Example usage
     input_docx = "tests/docs/simple_comment.docx"
-    output = process_docx(input_docx, authors="auto", placement="inline")
+    output = process_docx(input_docx, authors="always", placement="inline")
     print(output)
