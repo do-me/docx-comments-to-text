@@ -43,6 +43,10 @@ docx-comments-to-text document.docx --authors never    # Hide authors
 docx-comments-to-text document.docx --placement inline         # Inline with text (default)
 docx-comments-to-text document.docx --placement end-paragraph  # At end of each paragraph
 docx-comments-to-text document.docx --placement comments-only  # Comments only with context
+
+# XLSX: pick a single worksheet (default: render every sheet)
+docx-comments-to-text workbook.xlsx --list-sheets               # List worksheet names
+docx-comments-to-text workbook.xlsx --sheet "EO Products"       # Render just one sheet
 ```
 
 ### Development Usage

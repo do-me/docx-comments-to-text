@@ -11,7 +11,7 @@ from typing import Dict, List, Tuple
 SHEET_NS = '{http://schemas.openxmlformats.org/spreadsheetml/2006/main}'
 REL_NS = '{http://schemas.openxmlformats.org/officeDocument/2006/relationships}'
 PKG_REL_NS = '{http://schemas.openxmlformats.org/package/2006/relationships}'
-THREAD_NS = '{http://schemas.microsoft.com/office/threadedcomments/2018/main}'
+THREAD_NS = '{http://schemas.microsoft.com/office/spreadsheetml/2018/threadedcomments}'
 
 
 @dataclass
@@ -33,12 +33,21 @@ class XlsxParser:
     def __init__(self, xlsx_path: str):
         self.xlsx_path = xlsx_path
 
-    def render_markdown(self, show_authors: str = 'always') -> str:
+    def render_markdown(self, show_authors: str = 'always', sheet_name: str | None = None) -> str:
         try:
             with zipfile.ZipFile(self.xlsx_path, 'r') as z:
                 shared_strings = self._read_shared_strings(z)
                 persons = self._read_persons(z)
                 sheets = self._read_sheets(z)
+
+                if sheet_name is not None:
+                    matched = [s for s in sheets if s.name == sheet_name]
+                    if not matched:
+                        available = ', '.join(s.name for s in sheets)
+                        raise ValueError(
+                            f"Sheet '{sheet_name}' not found. Available sheets: {available}"
+                        )
+                    sheets = matched
 
                 # Resolve comments for each sheet
                 for sheet in sheets:
@@ -55,6 +64,11 @@ class XlsxParser:
                 return '\n\n'.join(p for p in parts if p)
         except FileNotFoundError:
             raise FileNotFoundError(f"Could not find file: {self.xlsx_path}")
+
+    def list_sheets(self) -> List[str]:
+        """Return the sheet names in workbook order."""
+        with zipfile.ZipFile(self.xlsx_path, 'r') as z:
+            return [s.name for s in self._read_sheets(z)]
 
     # -- workbook structure ----------------------------------------------------
 
@@ -120,18 +134,24 @@ class XlsxParser:
         """Threaded comments reference authors by personId — collect displayName per id."""
         persons: Dict[str, str] = {}
         for name in z.namelist():
-            if name.startswith('xl/persons/') and name.endswith('.xml'):
-                try:
-                    data = z.read(name)
-                except KeyError:
-                    continue
+            if not (name.startswith('xl/persons/') and name.endswith('.xml')):
+                continue
+            try:
+                data = z.read(name)
+            except KeyError:
+                continue
+            try:
                 tree = ET.fromstring(data)
-                for person in tree.iter():
-                    if person.tag.endswith('}person') or person.tag == 'person':
-                        pid = person.get('id', '') or person.get('{http://schemas.microsoft.com/office/threadedcomments/2018/main}id', '')
-                        display = person.get('displayName', '') or person.get('{http://schemas.microsoft.com/office/threadedcomments/2018/main}displayName', '')
-                        if pid:
-                            persons[pid] = display
+            except ET.ParseError:
+                continue
+            for person in tree.iter():
+                # Match <person> by local-name; namespace varies between Office builds
+                if not person.tag.endswith('}person') and person.tag != 'person':
+                    continue
+                pid = person.get('id', '')
+                display = person.get('displayName', '')
+                if pid:
+                    persons[pid] = display
         return persons
 
     # -- per-sheet comments ----------------------------------------------------
@@ -150,18 +170,18 @@ class XlsxParser:
             elif rtype.endswith('/comments'):
                 legacy_target = target
 
-        # Prefer threaded comments when present (they carry richer author info)
+        # Prefer threaded comments when present (richer author info); fall
+        # back to legacy if the threaded file is missing or yields nothing.
         if threaded_target:
             tpath = _normalize_target(sheet.path, threaded_target)
             try:
                 data = z.read(tpath)
                 for c in self._parse_threaded_comments(data, persons):
                     result.setdefault(c.cell_ref, []).append(c)
-                return result
             except KeyError:
                 pass
 
-        if legacy_target:
+        if not result and legacy_target:
             lpath = _normalize_target(sheet.path, legacy_target)
             try:
                 data = z.read(lpath)

@@ -2,6 +2,7 @@ import click
 import sys
 from pathlib import Path
 from .docx_processor import process_docx
+from .xlsx_parser import XlsxParser
 
 
 @click.command()
@@ -12,16 +13,29 @@ from .docx_processor import process_docx
               help='How to display comment authors (default: always)')
 @click.option('--placement', type=click.Choice(['inline', 'end-paragraph', 'comments-only']), default='inline',
               help='Comment placement style — .docx only (default: inline)')
-def main(input_file: Path, output_file: Path, authors: str, placement: str):
+@click.option('--sheet', 'sheet_name', default=None,
+              help='Render only this worksheet (xlsx only). Default: render every sheet.')
+@click.option('--list-sheets', is_flag=True, default=False,
+              help='List the worksheet names in the xlsx and exit.')
+def main(input_file: Path, output_file: Path, authors: str, placement: str,
+         sheet_name: str | None, list_sheets: bool):
     """Extract comments from DOCX or XLSX files and emit Markdown.
 
     File type is detected from the extension: .docx renders the document
     text with comments inserted; .xlsx renders each worksheet as a
-    Markdown table with comments embedded in their cells.
+    Markdown table with comments embedded in their cells. Use --sheet
+    to limit xlsx output to a single worksheet.
     """
 
     try:
-        formatted_text = process_docx(input_file, authors, placement)
+        if list_sheets:
+            if input_file.suffix.lower() != '.xlsx':
+                raise ValueError("--list-sheets only applies to .xlsx files")
+            for name in XlsxParser(str(input_file)).list_sheets():
+                click.echo(name)
+            return
+
+        formatted_text = process_docx(input_file, authors, placement, sheet=sheet_name)
 
         if output_file:
             output_file.write_text(formatted_text, encoding='utf-8')

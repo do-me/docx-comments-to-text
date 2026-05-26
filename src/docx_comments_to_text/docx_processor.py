@@ -4,7 +4,12 @@ from .text_formatter import format_text_with_comments
 from .xlsx_parser import XlsxParser
 
 
-def process_docx(input_file: str | Path, authors: str = 'always', placement: str = 'inline') -> str:
+def process_docx(
+    input_file: str | Path,
+    authors: str = 'always',
+    placement: str = 'inline',
+    sheet: str | None = None,
+) -> str:
     """
     Extract comments from a DOCX or XLSX file and return formatted text with comments.
 
@@ -16,13 +21,15 @@ def process_docx(input_file: str | Path, authors: str = 'always', placement: str
         authors: How to display authors ('never', 'always', 'auto')
         placement: Comment placement style — only meaningful for .docx
                    ('inline', 'end-paragraph', 'comments-only')
+        sheet: Worksheet name to render — only meaningful for .xlsx.
+               If None, every sheet is rendered.
 
     Returns:
         Markdown text with comments inserted.
 
     Raises:
         FileNotFoundError: If input file doesn't exist
-        ValueError: If the file extension isn't supported
+        ValueError: If the file extension isn't supported, or sheet name not found
     """
     path = Path(input_file)
     suffix = path.suffix.lower()
@@ -33,7 +40,7 @@ def process_docx(input_file: str | Path, authors: str = 'always', placement: str
         return format_text_with_comments(text, comments, ranges, show_authors=authors, placement=placement)
 
     if suffix == '.xlsx':
-        return XlsxParser(str(path)).render_markdown(show_authors=authors)
+        return XlsxParser(str(path)).render_markdown(show_authors=authors, sheet_name=sheet)
 
     raise ValueError(
         f"Unsupported file type: {suffix or '(no extension)'}. "
