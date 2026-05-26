@@ -2,19 +2,37 @@
 
 Extract reviewer comments from `.docx` **and `.xlsx`** files and insert them inline with the text/cell they reference. Output is **Markdown** (with proper headings, formatting, and tables) and each comment is wrapped in an unambiguous `<comment>` XML tag so downstream tools (especially LLMs) can recognise it cleanly. File type is detected automatically from the extension.
 
-Hosted version available at [https://docx-comment.app/](https://docx-comment.app/).
+> This is a fork of [platelminto/docx-comments-to-text](https://github.com/platelminto/docx-comments-to-text). See [Differences from upstream](#differences-from-upstream) for what's new.
+
+Hosted version of the original (plain-text) tool is available at [https://docx-comment.app/](https://docx-comment.app/).
 
 ## Installation
 
-### From PyPI (recommended)
+### Run directly from this fork with `uvx` (no install)
+```bash
+# One-shot run — uvx fetches the repo into an isolated env, runs the CLI, then cleans up
+uvx --from git+https://github.com/do-me/docx-comments-to-text docx-comments-to-text path/to/file.docx
+uvx --from git+https://github.com/do-me/docx-comments-to-text docx-comments-to-text path/to/file.xlsx --sheet "Sheet1" -o out.md
+```
+
+### Install persistently with `uv tool`
+```bash
+uv tool install --from git+https://github.com/do-me/docx-comments-to-text docx-comments-to-text
+
+# Then run from anywhere:
+docx-comments-to-text path/to/file.docx
+```
+
+### From PyPI (upstream plain-text version)
+> The PyPI release is the **upstream** project, which emits plain text and lacks the xlsx / markdown features in this fork.
 ```bash
 pip install docx-comments-to-text
 ```
 
 ### From source
 ```bash
-# Clone the repository
-git clone https://github.com/platelminto/docx-comments-to-text
+# Clone this fork
+git clone https://github.com/do-me/docx-comments-to-text
 cd docx-comments-to-text
 
 # Install in development mode
@@ -112,6 +130,26 @@ Each sheet becomes a Markdown table; comments are placed **inside the cell that 
 - Configurable author display (authors shown by default)
 - Multiple comment placement styles for `.docx` (inline, end-of-paragraph, comments-only)
 - **Zero runtime third-party deps for parsing** — `zipfile` + `xml.etree.ElementTree` from the stdlib do all the heavy lifting; only `click` is needed for the CLI
+
+## Differences from upstream
+
+This fork (`do-me/docx-comments-to-text`) extends [platelminto/docx-comments-to-text](https://github.com/platelminto/docx-comments-to-text) along several axes:
+
+| Area | Upstream | This fork |
+| --- | --- | --- |
+| Output format | Plain text | **Markdown** — headings, bold/italic, bullet/numbered lists, and proper pipe tables |
+| Comment syntax | `[COMMENT John: "feedback"]` | **XML tag**: `<comment author="John">feedback</comment>` (LLM-friendly; XML-escaped body) |
+| Author display default | `auto` (hidden when single author) | **`always`** — authors shown unless `--authors never` |
+| DOCX tables | Each cell on its own line | **Markdown pipe tables** with header separator |
+| DOCX headings | Plain text | `# … ######` based on `Heading1`–`Heading6` (plus `Title` / `Subtitle`) |
+| DOCX lists | Plain text | `- ` bullets and `1. ` numbered items, resolved from `numbering.xml`, with indent per level |
+| DOCX formatting | Lost | Bold (`**…**`) and italic (`*…*`); adjacent same-style runs are coalesced so output renders cleanly |
+| XLSX support | None | **Full support**: each sheet → Markdown table with comments embedded inside their owning cells (e.g. `Apples<comment author="…" cell="A2">…</comment>`) |
+| XLSX comments | n/a | Both legacy (`xl/comments*.xml`) and modern threaded (`xl/threadedComments/*.xml` + `xl/persons/*.xml`) — threaded preferred, legacy fallback |
+| XLSX sheet filtering | n/a | `--list-sheets` to discover names, `--sheet "Name"` to render one worksheet |
+| Runtime dependencies | `python-docx`, `lxml`, `click` | **`click` only** — DOCX/XLSX parsing is pure stdlib (`zipfile` + `xml.etree.ElementTree`) |
+
+The behavioural changes are covered by the existing test suite (73 tests).
 
 ## Technical Details
 
